@@ -42,14 +42,12 @@ $env:REDIS_URL = "redis://127.0.0.1:6379"
 .\waters-node.exe --port 42070
 ```
 
-## ☁️ Сервер 177 (Ubuntu)
+## ☁️ VPS (Ubuntu)
 
 ```bash
-ssh constructor@87.242.102.177
+ssh user@your-vps-ip
 cd ~/waters-node
 export DEEPSEEK_API_KEY=sk-xxxxxxxxxxxx
-./start.sh
-# или руками:
 ./waters-node --port 42069
 ```
 
