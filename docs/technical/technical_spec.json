@@ -1,0 +1,222 @@
+{
+  "meta": {
+    "title_ru": "WATERS Node v0.4 — Техническая спецификация",
+    "title_en": "WATERS Node v0.4 — Technical Specification",
+    "title_zh": "WATERS Node v0.4 — 技术规范",
+    "version": "0.4",
+    "date": "2026-05-17",
+    "author": "agent.constructor.v1",
+    "status": "утверждено",
+    "format": "yasa_technical_v1"
+  },
+  "sections": [
+    {
+      "code": "WATNODE-ARCH",
+      "title_ru": "Архитектура ноды",
+      "title_en": "Node Architecture",
+      "title_zh": "节点架构",
+      "articles": [
+        {
+          "code": "WATNODE-ARCH-1",
+          "title_ru": "Ядро ноды",
+          "title_en": "Node Core",
+          "title_zh": "节点核心",
+          "full_text_ru": "Один бинарник 11MB, 36 .rs файлов, ~9500 строк кода на Rust. Нода включает SubAgent Manager (макс 10 конкурентных), BridgeProvider (LLM, MCP, медиа, голос, чат), P2P Gossip (mDNS + TCP), веб-дашборд (SSE).",
+          "full_text_en": "Single 11MB binary, 36 .rs files, ~9500 lines of Rust code. Node includes SubAgent Manager (max 10 concurrent), BridgeProvider (LLM, MCP, media, voice, chat), P2P Gossip (mDNS + TCP), web dashboard (SSE).",
+          "full_text_zh": "单个 11MB 二进制文件，36 个 .rs 文件，约 9500 行 Rust 代码。节点包括 SubAgent 管理器（最多 10 个并发）、BridgeProvider（LLM、MCP、媒体、语音、聊天）、P2P Gossip（mDNS + TCP）、网页仪表板（SSE）。",
+          "consequence_ru": "Нода работает без внешних зависимостей кроме Redis",
+          "consequence_en": "Node runs without external dependencies except Redis",
+          "consequence_zh": "节点除 Redis 外无需外部依赖即可运行"
+        },
+        {
+          "code": "WATNODE-ARCH-2",
+          "title_ru": "Слои ноды",
+          "title_en": "Node Layers",
+          "title_zh": "节点层次",
+          "full_text_ru": "Слой UX: чат + голос. Слой ядра: Engine с роутингом команд. Слой ресурсов: Bridge Registry, MCP Client Pool, Skill Registry. Слой сети: P2P + Gossip + WAL. Слой автономии: L0-L4 + DTN.",
+          "full_text_en": "UX layer: chat + voice. Core layer: Engine with command routing. Resource layer: Bridge Registry, MCP Client Pool, Skill Registry. Network layer: P2P + Gossip + WAL. Autonomy layer: L0-L4 + DTN.",
+          "full_text_zh": "UX 层：聊天 + 语音。核心层：带命令路由的引擎。资源层：桥接注册表、MCP 客户端池、技能注册表。网络层：P2P + Gossip + WAL。自治层：L0-L4 + DTN。",
+          "consequence_ru": "Каждый слой изолирован и может быть заменён независимо",
+          "consequence_en": "Each layer is isolated and can be replaced independently",
+          "consequence_zh": "每层都是独立的，可以独立更换"
+        },
+        {
+          "code": "WATNODE-ARCH-3",
+          "title_ru": "Сравнение с Hermes Agent",
+          "title_en": "Comparison with Hermes Agent",
+          "title_zh": "与 Hermes Agent 的比较",
+          "full_text_ru": "Hermes Agent (153K ★) — зрелая платформа с самосовершенствующимися навыками, 22 платформами обмена сообщениями, крон-планировщиком, ленивой загрузкой зависимостей и плагинами. waters-node компактнее (11MB vs ~200MB), быстрее (Rust vs Python), но уступает в экосистеме навыков и мультиплатформенности.",
+          "full_text_en": "Hermes Agent (153K ★) is a mature platform with self-improving skills, 22 messaging platforms, cron scheduler, lazy dependency loading, and plugins. waters-node is more compact (11MB vs ~200MB), faster (Rust vs Python), but lags in skill ecosystem and multi-platform support.",
+          "full_text_zh": "Hermes Agent（153K ★）是一个成熟的平台，具有自我改进技能、22 个消息平台、cron 调度器、延迟依赖加载和插件。waters-node 更紧凑（11MB 对比 ~200MB），更快（Rust 对比 Python），但在技能生态系统和多平台支持方面落后。",
+          "consequence_ru": "v0.5 должен добавить самосовершенствование навыков, крон и больше платформ",
+          "consequence_en": "v0.5 should add skill self-improvement, cron, and more platforms",
+          "consequence_zh": "v0.5 应添加技能自我改进、cron 和更多平台"
+        }
+      ]
+    },
+    {
+      "code": "WATNODE-MODE",
+      "title_ru": "Режимы ноды",
+      "title_en": "Node Modes",
+      "title_zh": "节点模式",
+      "articles": [
+        {
+          "code": "WATNODE-MODE-1",
+          "title_ru": "Пять режимов работы",
+          "title_en": "Five Operating Modes",
+          "title_zh": "五种操作模式",
+          "full_text_ru": "Plan — планирование задач и целей. Assemble — сбор группы (ноды + агенты). Execute — исполнение задач, агенты в работе. Stop — пауза всех задач. Log — журнал работы группы. Переключение: режим план/сбор/выполнение/стоп/журнал.",
+          "full_text_en": "Plan — task planning and goal setting. Assemble — group assembly (nodes + agents). Execute — task execution, agents working. Stop — pause all tasks. Log — group work log. Switch: режим план/сбор/выполнение/стоп/журнал.",
+          "full_text_zh": "Plan — 任务规划和目标设定。Assemble — 组装配（节点 + 智能体）。Execute — 任务执行，智能体工作。Stop — 暂停所有任务。Log — 组工作日志。切换：режим план/сбор/выполнение/стоп/журнал。",
+          "consequence_ru": "Режимы определяют набор доступных команд и поведение агентов",
+          "consequence_en": "Modes determine available commands and agent behavior",
+          "consequence_zh": "模式决定了可用的命令和智能体行为"
+        }
+      ]
+    },
+    {
+      "code": "WATNODE-MEM",
+      "title_ru": "Система памяти (Redis)",
+      "title_en": "Memory System (Redis)",
+      "title_zh": "内存系统（Redis）",
+      "articles": [
+        {
+          "code": "WATNODE-MEM-1",
+          "title_ru": "Multi-DB архитектура",
+          "title_en": "Multi-DB Architecture",
+          "title_zh": "多数据库架构",
+          "full_text_ru": "DB 0 — системная (node:state, рейтинг, безопасность). DB 1-6 — группы (чат, findings, журнал, мнения). DB 15 — кэш LLM. Ключи: agent:{id}:state (Hash), agent:{id}:findings (Stream), group:{id}:chat (Stream).",
+          "full_text_en": "DB 0 — system (node:state, rating, security). DB 1-6 — groups (chat, findings, journal, opinions). DB 15 — LLM cache. Keys: agent:{id}:state (Hash), agent:{id}:findings (Stream), group:{id}:chat (Stream).",
+          "full_text_zh": "DB 0 — 系统（node:state、评分、安全）。DB 1-6 — 组（聊天、发现、日志、意见）。DB 15 — LLM 缓存。键：agent:{id}:state（Hash）、agent:{id}:findings（Stream）、group:{id}:chat（Stream）。",
+          "consequence_ru": "Данные переживают перезапуск, Redis — единственная обязательная зависимость",
+          "consequence_en": "Data survives restarts, Redis is the only mandatory dependency",
+          "consequence_zh": "数据在重启后仍然存在，Redis 是唯一强制依赖"
+        }
+      ]
+    },
+    {
+      "code": "WATNODE-P2P",
+      "title_ru": "Сеть (P2P)",
+      "title_en": "Network (P2P)",
+      "title_zh": "网络（P2P）",
+      "articles": [
+        {
+          "code": "WATNODE-P2P-1",
+          "title_ru": "Топология соединений",
+          "title_en": "Connection Topology",
+          "title_zh": "连接拓扑",
+          "full_text_ru": "До 6 пиров (MAX_PEERS=6). Мастер-слейв (один за NAT), Hub-and-Spoke (все через VPS), полная сетка (6 нод mesh). mDNS для локального обнаружения, TCP sync для WAL. DTN для прерывистой связи.",
+          "full_text_en": "Up to 6 peers (MAX_PEERS=6). Master-slave (one behind NAT), Hub-and-Spoke (all through VPS), full mesh (6 nodes). mDNS for local discovery, TCP sync for WAL. DTN for intermittent connectivity.",
+          "full_text_zh": "最多 6 个对等点（MAX_PEERS=6）。主从（一个在 NAT 后）、集线辐射（全部通过 VPS）、全网状（6 个节点）。mDNS 用于本地发现，TCP sync 用于 WAL。DTN 用于间歇性连接。",
+          "consequence_ru": "Каждая нода имеет HTTP API (порт N), MCP сервер (N+100), TCP sync (N+3), mDNS (N+1)",
+          "consequence_en": "Each node has HTTP API (port N), MCP server (N+100), TCP sync (N+3), mDNS (N+1)",
+          "consequence_zh": "每个节点都有 HTTP API（端口 N）、MCP 服务器（N+100）、TCP sync（N+3）、mDNS（N+1）"
+        }
+      ]
+    },
+    {
+      "code": "WATNODE-AGENT",
+      "title_ru": "Система агентов",
+      "title_en": "Agent System",
+      "title_zh": "智能体系统",
+      "articles": [
+        {
+          "code": "WATNODE-AGENT-1",
+          "title_ru": "SubAgent lifecycle",
+          "title_en": "SubAgent Lifecycle",
+          "title_zh": "子智能体生命周期",
+          "full_text_ru": "agent_open(role, skill, llm) → spawn tokio task. agent_send_input(message, interrupt) → отправка сообщения. agent_assign(new_objective) → смена задачи. agent_eval → чтение результатов. agent_close → cancellation cascade + journal. Concurrency cap: макс 10.",
+          "full_text_en": "agent_open(role, skill, llm) → spawn tokio task. agent_send_input(message, interrupt) → send message. agent_assign(new_objective) → change task. agent_eval → read results. agent_close → cancellation cascade + journal. Concurrency cap: max 10.",
+          "full_text_zh": "agent_open(role, skill, llm) → 生成 tokio 任务。agent_send_input(message, interrupt) → 发送消息。agent_assign(new_objective) → 更改任务。agent_eval → 读取结果。agent_close → 取消级联 + 日志。并发上限：最多 10 个。",
+          "consequence_ru": "Агенты могут работать параллельно, импортироваться из TUI/Claude/Cursor и сливаться",
+          "consequence_en": "Agents can work in parallel, be imported from TUI/Claude/Cursor, and be merged",
+          "consequence_zh": "智能体可以并行工作，从 TUI/Claude/Cursor 导入，并可合并"
+        },
+        {
+          "code": "WATNODE-AGENT-2",
+          "title_ru": "54+ профессий",
+          "title_en": "54+ Professions",
+          "title_zh": "54+ 职业",
+          "full_text_ru": "TUI-code агенты (general, explorer, planner, reviewer, implementer, verifier, custom). WATERS профессии: collector, scout, analyst, synthesizer, coordinator, archivist, specialist. Медиа: camera-operator, video-editor, lab-operator.",
+          "full_text_en": "TUI-code agents (general, explorer, planner, reviewer, implementer, verifier, custom). WATERS professions: collector, scout, analyst, synthesizer, coordinator, archivist, specialist. Media: camera-operator, video-editor, lab-operator.",
+          "full_text_zh": "TUI-code 智能体（通用、探索者、规划者、审查者、实现者、验证者、自定义）。WATERS 职业：收集者、侦察者、分析者、合成者、协调者、档案员、专家。媒体：摄像操作员、视频编辑员、实验室操作员。",
+          "consequence_ru": "Агенты могут быть созданы, импортированы и слиты в runtime",
+          "consequence_en": "Agents can be created, imported, and merged at runtime",
+          "consequence_zh": "智能体可以在运行时创建、导入和合并"
+        }
+      ]
+    },
+    {
+      "code": "WATNODE-SEC",
+      "title_ru": "Безопасность",
+      "title_en": "Security",
+      "title_zh": "安全",
+      "articles": [
+        {
+          "code": "WATNODE-SEC-1",
+          "title_ru": "YASA-досмотр",
+          "title_en": "YASA Screening",
+          "title_zh": "YASA 审查",
+          "full_text_ru": "Каждый агент проверяется: bridges (только разрешённые), prompt (rm -rf, sudo, curl|bash), imported_from (только trusted). Чат-аппрув подключений. Heartbeat мониторинг. Рейтинг < 0.3 не получает задач. Автономия L0-L4.",
+          "full_text_en": "Every agent is screened: bridges (only allowed), prompt (rm -rf, sudo, curl|bash), imported_from (only trusted). Chat-approve connections. Heartbeat monitoring. Rating < 0.3 gets no tasks. Autonomy L0-L4.",
+          "full_text_zh": "每个智能体都经过审查：桥接（仅允许的）、提示（rm -rf、sudo、curl|bash）、imported_from（仅受信任的）。聊天批准连接。心跳监控。评分 < 0.3 不会获得任务。自主性 L0-L4。",
+          "consequence_ru": "Безопасность на уровне запуска агента, а не на уровне сети",
+          "consequence_en": "Security at agent launch level, not network level",
+          "consequence_zh": "安全在智能体启动级别，而非网络级别"
+        }
+      ]
+    },
+    {
+      "code": "WATNODE-API",
+      "title_ru": "API и команды",
+      "title_en": "API and Commands",
+      "title_zh": "API 和命令",
+      "articles": [
+        {
+          "code": "WATNODE-API-1",
+          "title_ru": "HTTP API",
+          "title_en": "HTTP API",
+          "title_zh": "HTTP API",
+          "full_text_ru": "GET /status — состояние ноды. GET /peers — список пиров. POST /chat — отправка сообщения. GET /store/:key — чтение Redis. SSE /api/v1/stream/{session} — стриминг. MCP сервер на порту N+100.",
+          "full_text_en": "GET /status — node state. GET /peers — peer list. POST /chat — send message. GET /store/:key — Redis read. SSE /api/v1/stream/{session} — streaming. MCP server on port N+100.",
+          "full_text_zh": "GET /status — 节点状态。GET /peers — 对等列表。POST /chat — 发送消息。GET /store/:key — Redis 读取。SSE /api/v1/stream/{session} — 流式传输。MCP 服务器在端口 N+100。",
+          "consequence_ru": "Полный доступ к функциональности ноды через HTTP",
+          "consequence_en": "Full node functionality access via HTTP",
+          "consequence_zh": "通过 HTTP 完全访问节点功能"
+        },
+        {
+          "code": "WATNODE-API-2",
+          "title_ru": "Чат-команды",
+          "title_en": "Chat Commands",
+          "title_zh": "聊天命令",
+          "full_text_ru": "/help — справка. /skills — список скиллов. /agents — список агентов. /bridges — список бриджей. /status — состояние. /mode — переключить режим. /connect <ip> — подключить пир. /chat <текст> — LLM. /say <id> <текст> — сообщение в группу. /merge — слияние агентов. /import — импорт агента.",
+          "full_text_en": "/help — help. /skills — skill list. /agents — agent list. /bridges — bridge list. /status — state. /mode — switch mode. /connect <ip> — connect peer. /chat <text> — LLM. /say <id> <text> — group message. /merge — merge agents. /import — import agent.",
+          "full_text_zh": "/help — 帮助。 /skills — 技能列表。 /agents — 智能体列表。 /bridges — 桥接列表。 /status — 状态。 /mode — 切换模式。 /connect <ip> — 连接对等。 /chat <text> — LLM。 /say <id> <text> — 群组消息。 /merge — 合并智能体。 /import — 导入智能体。",
+          "consequence_ru": "Все команды доступны на русском и через веб-дашборд",
+          "consequence_en": "All commands available in Russian and via web dashboard",
+          "consequence_zh": "所有命令均可使用俄语并通过网页仪表板使用"
+        }
+      ]
+    },
+    {
+      "code": "WATNODE-INSTALL",
+      "title_ru": "Установка и запуск",
+      "title_en": "Installation and Launch",
+      "title_zh": "安装和启动",
+      "articles": [
+        {
+          "code": "WATNODE-INSTALL-1",
+          "title_ru": "Быстрый старт",
+          "title_en": "Quick Start",
+          "title_zh": "快速开始",
+          "full_text_ru": "Linux: wget бинарника + Redis + DeepSeek API ключ. Windows: powershell + Memurai. Docker: redis + waters-node контейнеры. VPS: ssh + бинарник. Минимальные требования: Redis 6+, DeepSeek API/Ollama, браузер Chrome 90+.",
+          "full_text_en": "Linux: download binary + Redis + DeepSeek API key. Windows: powershell + Memurai. Docker: redis + waters-node containers. VPS: ssh + binary. Minimum requirements: Redis 6+, DeepSeek API/Ollama, Chrome 90+ browser.",
+          "full_text_zh": "Linux：下载二进制文件 + Redis + DeepSeek API 密钥。Windows：powershell + Memurai。Docker：redis + waters-node 容器。VPS：ssh + 二进制文件。最低要求：Redis 6+、DeepSeek API/Ollama、Chrome 90+ 浏览器。",
+          "consequence_ru": "От 5 минут до запуска первой ноды",
+          "consequence_en": "From 5 minutes to first node launch",
+          "consequence_zh": "从 5 分钟到第一个节点启动"
+        }
+      ]
+    }
+  ]
+}
