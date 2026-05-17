@@ -1,0 +1,49 @@
+{
+  "_comment_obsidian": "Obsidian как внешняя память",
+  "_comment_jupyter": "Jupyter Notebook как MCP-мост",
+  "_comment_ollama": "Локальный LLM на ноутбуке",
+
+  "llm": {
+    "providers": [
+      {
+        "name": "ollama",
+        "provider": "ollama",
+        "url": "http://127.0.0.1:11434",
+        "model": "qwen2.5:7b",
+        "enabled": true
+      }
+    ],
+    "active": "deepseek"
+  },
+
+  "bridges": [
+    {
+      "name": "obsidian",
+      "provider": "mcp",
+      "transport": "http",
+      "config": {
+        "url": "http://127.0.0.1:27123",
+        "api_key": "{env:OBSIDIAN_API_KEY}"
+      },
+      "enabled": true
+    }
+  ],
+
+  "mcp_servers": [
+    {
+      "name": "jupyter",
+      "command": "jupyter-mcp",
+      "args": ["--port", "5000"],
+      "tools": ["run_cell", "list_kernels", "get_output"],
+      "enabled": true
+    }
+  ],
+
+  "chat": {
+    "transport": "telegram",
+    "token": "{env:TELEGRAM_BOT_TOKEN}",
+    "phone_number_id": "",
+    "app_id": "",
+    "app_secret": ""
+  }
+}
