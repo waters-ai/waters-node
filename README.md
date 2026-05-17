@@ -174,3 +174,16 @@ AI-телеведущий с 6 голосами. Совместный стрим
 ## Лицензия
 
 MIT
+
+---
+
+## v0.5.0-alpha
+
+**12MB, 44 модуля, ~13000 строк.** [Скачать](https://github.com/waters-ai/waters-core/releases/tag/v0.5.0-alpha)
+
+| Платформа | Бинарник | Установка |
+|-----------|----------|-----------|
+| 🐧 Linux x64 | [waters-node](https://github.com/waters-ai/waters-core/releases/download/v0.5.0-alpha/waters-node) | `curl -sL https://git.io/waters-node \| bash` |
+| 🪟 Windows x64 | [waters-node.exe](https://github.com/waters-ai/waters-core/releases/download/v0.5.0-alpha/waters-node.exe) | `irm https://git.io/waters-node.ps1 \| iex` |
+| 🍎 macOS | сборка из исходников | `cargo build --release` |
+| ☁️ VPS | [deploy/waters-node.service](deploy/waters-node.service) | systemd + [deploy/waters-node.env](deploy/waters-node.env) |
