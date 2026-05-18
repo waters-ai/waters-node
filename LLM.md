@@ -1,6 +1,6 @@
-# Управление LLM
+# Управление LLM / LLM Management / LLM 管理
 
-## Провайдеры
+## [RU] Провайдеры
 
 Нода поддерживает **6 LLM-провайдеров** (по одному на каждую из 6 нод в группе):
 
@@ -13,15 +13,62 @@
 | **OpenRouter** | через bridges.json | любой |
 | **Custom** | bridges.json | любой |
 
-## Настройка
+## [RU] Гибридная LLM (hybrid_llm) — новое в v1.0.0
+
+Прозрачная прослойка между LLM Router и агентами. Автоматически переключает источник:
+
+```
+Запрос агента → HybridLlm.query(prompt, Auto)
+  ├── L0: Remote (DeepSeek/Ollama) + Edge валидирует
+  ├── L1: Remote + Edge как fallback
+  ├── L2: Edge (GGUF 1-3B) на простые, сложные в очередь
+  ├── L3: Только Edge + DTN-сжатый лог
+  └── L4: Safe mode (SOS/маяк)
+```
+
+### [RU] Бортовая LLM (EdgeEngine)
+- GGUF-модель 1-3B через llama-cpp-rs или candle
+- CPU-инференс, <500ms на RPi4
+- Не требует интернета
+
+### [RU] Упреждающая загрузка
+PrefetchCache предзагружает вероятные ответы на основе активных задач в Redis DB 14-15.
+
+## [RU] Распределённый инференс (distributed_inference) — новое в v1.0.0
+
+Четыре подрежима, автовыбор по условиям:
+
+| Режим | Условие | Описание |
+|-------|---------|----------|
+| DistributedCache | hash(prompt) → 6 нод | Поиск <200ms, 80% hit |
+| PipelineParallel | feature-gate | Модель по слоям, тензоры P2P |
+| TokenFederation | DeepSeek Flash API | Единый пул, полная автономия |
+| DomainRouter | ProfileConfig | Роутинг по доменам |
+
+## [EN] Three-layer structure
+
+```
+Agent → HybridLlm → EdgeEngine (GGUF 1-3B, offline)
+                  → RemoteRouter (BridgePool, online)
+                  → DistributedInference (P2P, 6 nodes)
+```
+
+## [ZH] 三层结构
+
+```
+智能体 → HybridLlm → EdgeEngine（GGUF 1-3B，离线）
+                  → RemoteRouter（BridgePool，在线）
+                  → DistributedInference（P2P，6个节点）
+```
+
+---
+
+## [RU] Настройка
 
 ### Через переменные окружения
 
 ```bash
-# Основной провайдер (определяет нода)
 export DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx
-
-# Ollama (локальный fallback)
 export OLLAMA_HOST=http://127.0.0.1:11434
 ```
 
@@ -30,7 +77,6 @@ export OLLAMA_HOST=http://127.0.0.1:11434
 ```json
 {
   "llm": {
-    "providers": [],
     "custom": {
       "name": "deepseek",
       "provider": "deepseek",
@@ -38,24 +84,37 @@ export OLLAMA_HOST=http://127.0.0.1:11434
       "url": "https://api.deepseek.com",
       "api_key": "{DEEPSEEK_API_KEY}",
       "enabled": true
-    },
-    "active": "deepseek"
+    }
   }
 }
 ```
 
-## Переключение между LLM
+### [RU] Бортовая модель (новое в v1.0.0)
 
-В консоли ноды:
+```toml
+[edge]
+model = "qwen2.5-1.5b.q4_k_m.gguf"
+cache_ttl = 300
+max_tokens = 512
+```
+
+## [RU] Кэширование
+
+| Кэш | Redis DB | TTL | Назначение |
+|-----|----------|-----|-----------|
+| LLM cache | DB 15 | 60s | Повторные запросы |
+| Edge cache | DB 14 | 300s | Бортовая LLM |
+| Distributed | DB 1-6 | config | P2P-кеш 6 нод |
+
+## [RU] Переключение между LLM
 
 ```
 /llm                       # список доступных LLM
-/llm set deepseek          # переключить на DeepSeek
-/llm set ollama            # переключить на Ollama
-/llm set openai            # переключить на OpenAI
+/llm set deepseek          # переключить провайдера
+/llm mode auto|local|remote # режим hybrid_llm
 ```
 
-## 6 нод = 6 LLM (P2P роутинг)
+## [RU] 6 нод = 6 LLM (P2P роутинг)
 
 ```
 Нода 1 (DeepSeek Pro)  ───┐
@@ -64,30 +123,18 @@ export OLLAMA_HOST=http://127.0.0.1:11434
 Нода 4 (GPT-4o)        ───┤
 Нода 5 (DeepSeek Flash)───┤
 Нода 6 (Custom)        ───┘
-
-agent_open с указанием LLM:
-  agent_open("анализ", skill="spectra", llm="claude")
-    → система находит ноду с Claude
-    → spawn агента на той ноде
-    → результат → Finding → Redis → вся группа видит
 ```
 
-## Кэширование
+## [RU] Офлайн-режим (L0-L4) — v1.0.0
 
-Redis DB 15 хранит кэш ответов LLM (TTL 60 сек). Повторный запрос с тем же input
-не тратит токены.
+| Уровень | LLM | Бортовая GGUF | Режим |
+|---------|-----|---------------|-------|
+| L0 | DeepSeek API | Валидация | Полная мощность |
+| L1 | Ollama local | Fallback | Экономия API |
+| L2 | — | Простые запросы | Автономный |
+| L3 | — | Только бортовая | Энергосбережение |
+| L4 | — | SOS | Safe mode |
 
-```bash
-# Размер кэша:
-redis-cli -n 15 DBSIZE
-```
+---
 
-## Офлайн-режим (L0-L4)
-
-| Уровень | LLM | Kafka | Режим |
-|---------|-----|-------|-------|
-| L0 | DeepSeek (API) | Online | Полная мощность |
-| L1 | Ollama (local) | Online | Экономия API |
-| L2 | Ollama (local) | Offline | Автономный |
-| L3 | Ollama mini | Offline | Энергосбережение |
-| L4 | Нет | Offline | Safe mode |
+*Обновлено для v1.0.0. Три языка: RU (основной), EN (технический), ZH (международный)*

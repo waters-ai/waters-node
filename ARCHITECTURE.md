@@ -1,167 +1,110 @@
-# Архитектура waters-node v0.4
+# Архитектура waters-node v1.0.0 / Architecture / 架构
 
-## 1. Ядро (Rust)
-
-**Один бинарник, 11MB, 36 .rs файлов, ~9500 строк кода.**
+## 1. [RU] Ядро (Rust) — 48+ модулей
 
 ```
-waters-node
-├── main.rs           — точка входа, инициализация
-├── store.rs          — Redis multi-DB (0-15), PUBLISH, XADD, HSET
-├── subagent.rs       — SubAgent lifecycle (open/eval/close/send/assign)
-├── bridge.rs         — BridgeProvider: LLM, Chat, Voice, MCP, Media
-├── skill.rs          — SkillRegistry, SkillManifest, merge_agents
-├── bridge_agent.rs   — импорт/экспорт TUI/Claude/Cursor/WATERS
-├── agent_rating.rs   — рейтинг + YASA-досмотр безопасности
-├── group_chat.rs     — групповой чат + мнения агентов о задачах
-├── media_bridge.rs   — NDI, OBS, RTMP, HDMI
-├── mcp_server.rs     — MCP-сервер (агенты как tools для внешних систем)
-├── mcp.rs            — MCP-клиент
-├── gossip.rs         — P2P: mDNS + TCP sync
-├── group.rs          — группы, режимы, участники
-├── channel.rs        — WAL-каналы
-├── cargo.rs          — протокол передачи агентов
-├── api.rs            — HTTP API + веб-дашборд (+ голос)
-├── tui_agent.rs      — TUI-совместимые агенты
-├── handlers.rs       — CLI-команды (/agent, /say, /send, /merge...)
-├── session.rs        — сессии, checkpoint recovery
-├── convo.rs          — диалоговый интерфейс
-├── display.rs        — ANSI-вывод
-├── tools/            — инструменты (file, search, shell, git)
-├── task.rs           — менеджер задач
-├── config.rs         — TOML-конфиг
-├── node.rs           — идентификация ноды
-├── agent.rs          — реестр агентов
-├── autonomy.rs       — L0-L4 автономия
-├── dtn.rs            — DTN-задержки (tc-netem)
-├── journal.rs        — бортовой журнал
-├── offline.rs        — офлайн-очередь
-├── mode.rs           — режимы ноды
-└── demo.rs           — демо-режим
+waters-node/
+├── hybrid_llm.rs      — 🔴 EdgeEngine (GGUF), SwitchProtocol (L0-L4)
+├── distributed.rs     — 🔴 DistributedCache, PipelineParallel, TokenFed
+├── code_review.rs     — 🔴 3 агента, CodeSandbox, голосование
+├── bridge.rs          — ✅ BridgePool: LLM, Chat, Voice, MCP, Media
+├── gossip.rs          — ✅ P2P: mDNS + TCP sync + Cargo protocol
+├── cargo.rs           — ✅ DTN-перемещение агентов
+├── dtn.rs             — ✅ DTN-задержки, приоритетная очередь
+├── store.rs           — ✅ Redis multi-DB (0-15)
+├── subagent.rs        — ✅ SubAgent lifecycle (open/eval/close)
+├── autonomy.rs        — ✅ L0-L4 + can_use_edge()
+├── offline.rs         — ✅ OfflineQueue (JSONL)
+├── yasa_agent.rs      — ✅ +CMD-6: проверка бортовой LLM
+├── self_deploy.rs     — ✅ +deploy_with_review()
+├── a2a.rs             — ✅ Google Agent2Agent (не трогать)
+├── mcp_store.rs       — ✅ MCP Store (не трогать)
+├── media_bridge.rs    — ✅ NDI, OBS, RTMP (не трогать)
+├── tamagotchi.rs      — ✅ Личность ноды (не трогать)
+├── agent.rs, task.rs, group.rs, session.rs, channel.rs ...
+└── main.rs            — ✅ +HybridLlm.init()
 ```
 
-## 2. Память (Redis)
-
-Каждая нода использует локальный Redis (или удалённый).
+## 2. [RU] Память (Redis) — расширение v1.0.0
 
 ```
-DB 0  — системная: node:state, agent:rating:*, agent:security:*
+DB 0  — системная: node:state, agent:rating, security
 DB 1-6 — группы: group:{id}:chat, findings, journal
-DB 15 — LLM cache: llm:{name}:{hash}
-
-Ключи:
-  agent:{id}:state        → Hash — состояние агента
-  agent:{id}:findings     → Stream — результаты работы
-  agent:{id}:journal      → Stream — жизненный цикл
-  agents:active           → Set — активные агенты
-  group:{id}:chat         → Stream — чат группы
-  group:{id}:opinions:{t} → Stream — мнения о задаче
-  media:ndi:{source}      → Stream — NDI видеокадры
-  media:display:latest    → Stream — последнее на экран
-  studio:capture:{source} → Stream — захват из студии
+DB 14 — EDGE_CACHE: кеш бортовой LLM (TTL 300s)   ← NEW
+DB 15 — LLM_CACHE: кеш внешней LLM (TTL 60s)
+DB 16 — DISTR_CACHE: распределённый кеш 6 нод      ← NEW
 ```
 
-## 3. Сеть (P2P)
-
-Ноды общаются через gossip протокол:
+## 3. [RU] Сеть (P2P)
 
 ```
 mDNS — обнаружение нод в локальной сети
 TCP  — синхронизация каналов (WAL)
-      ─ сообщения, задачи, состояния агентов
-      
-Каждая нода:
-  - HTTP API на порту N (web dashboard)
-  - MCP Server на порту N+100 (agents as tools)
-  - TCP sync на порту N+3
-  - mDNS на порту N+1
+DTN  — прерывистая связь, пакеты 256 байт
+
+Порты:
+  HTTP API: N
+  MCP Server: N+100
+  TCP sync: N+3
+  mDNS: N+1
 ```
 
-## 4. Агенты
+## 4. [RU] Гибридная LLM (новое в v1.0.0)
 
 ```
-agent_open(role, skill, llm, group_id, node_id, parent_id, bg)
-  → создаёт Redis Hash + Stream
-  → spawn tokio task (слушает input)
-  → проверка concurrency cap (max 10)
-
-agent_send_input(agent_id, message, interrupt)
-  → отправляет сообщение в канал агента
-
-agent_assign(agent_id, new_objective)
-  → обновляет задачу в Redis
-
-agent_eval(agent_id) → SubAgentResult
-  → читает state + findings_count из Redis
-
-agent_close(agent_id)
-  → cancellation cascade (закрывает детей)
-  → сохраняет journal
+Agent → HybridLlm.query(prompt, Auto)
+  ├── RemoteRouter → BridgePool (DeepSeek/Ollama/OpenAI...)
+  ├── EdgeEngine → llama-cpp-rs (GGUF 1-3B, CPU)
+  ├── SwitchProtocol → AutonomyEngine (L0-L4)
+  ├── PrefetchCache → Redis DB 14
+  └── SyncQueue → OfflineQueue (JSONL)
 ```
 
-## 5. Медиа-мосты
+## 5. [RU] Распределённый инференс (новое в v1.0.0)
 
 ```
-MediaBridge:
-  NDI    — отправка видео по сети (Redis → NDI)
-  OBS    — управление сценами через WebSocket
-  RTMP   — стриминг на YouTube/Twitch
-  HDMI   — вывод на экран (SDL2/framebuffer)
-
-Audio:
-  🎤 Рация    — MediaRecorder → SSE → AudioContext (0 токенов)
-  🤖 Агент    — SpeechRecognition → LLM → SpeechSynthesis (токены)
-  6 голосов   — разные профили для разных агентов
+6 нод P2P:
+  DistributedCache: hash(prompt) → gossip → 200ms
+  PipelineParallel: модель по слоям, тензоры через CargoEngine
+  TokenFederation: DeepSeek Flash API → пул → автономия
+  DomainRouter: ProfileConfig → роутинг по доменам
 ```
 
-## 6. Безопасность (YASA)
+## 6. [RU] Безопасный self-improve (новое в v1.0.0)
 
 ```
-/screen <agent> → досмотр:
-  1. Проверка bridges (только разрешённые)
-  2. Сканирование prompt (rm -rf, sudo, curl|bash...)
-  3. Проверка imported_from (только trusted источники)
-  4. Если fail → блокировка запуска
+3 агента:
+  Programmer — пишет код + тесты
+  SecurityReviewer — YASA + OWASP
+  OnboardManager — RAM/CPU/compat
+Голосование: 2/3 Approve → AutoDeploy
+CodeSandbox: tempfile + unshare/docker
 ```
 
+## 7. [RU] Сравнение v0.5 vs v1.0.0
 
+| Параметр | v0.5 | v1.0.0 |
+|----------|------|--------|
+| Объём кода | ~12000 строк | ~15000 строк |
+| Модулей | 48 | 51+ |
+| LLM-режим | Online only | Online + GGUF + P2P |
+| Self-improve | без ревью | 3-агентный конвейер |
+| Офлайн | L4 safe mode | L2-L4 с EdgeEngine |
+| Бинарник | 12MB | <20MB (GGUF отдельно) |
+| Тестов | 36 | 40+ |
 
-## 8. Режимы ноды
+## [EN] Key changes in v1.0.0
 
-Пять режимов определяют состояние группы:
+Three new modules: `hybrid_llm.rs`, `distributed.rs`, `code_review.rs`.
+Extended Redis: DB 14 (edge cache), DB 16 (distributed cache).
+YASA CMD-6 added. Self-deploy with code review pipeline.
 
-| Режим | Описание | Доступные команды |
-|-------|----------|-------------------|
-| 📋 **Plan** | Планирование задач, определение целей | создай задачу, покажи задачи, режим сбор |
-| 🔗 **Assemble** | Сбор группы: подключение нод, агентов | подключись к, добавь агента, создай группу, режим выполнение |
-| ⚡ **Execute** | Исполнение: агенты работают | назначь, покажи статус, стоп задача |
-| ⏹ **Stop** | Пауза всех задач | продолжить, покажи статус, режим выполнение |
-| 📜 **Log** | Журнал работы группы | покажи лог, режим план |
+## [ZH] v1.0.0 的主要变化
 
-Переключение: `режим план` / `режим сбор` / `режим выполнение` / `режим стоп` / `режим журнал`
+三个新模块：`hybrid_llm.rs`、`distributed.rs`、`code_review.rs`。
+扩展的Redis：DB 14（边缘缓存）、DB 16（分布式缓存）。
+新增YASA CMD-6。带代码审查管道的自我部署。
 
-## 9. Автономия L0-L4
+---
 
-Уровни автономии для прерывистой связи (полевые условия, туризм):
-
-| Уровень | LLM | Связь | Режим работы |
-|---------|-----|-------|-------------|
-| L0 | DeepSeek API | Онлайн | Полная функциональность |
-| L1 | DeepSeek API + кэш | Эпизодическая | Экономия трафика |
-| L2 | Ollama local | Офлайн | Локальная работа |
-| L3 | Convo (без LLM) | Разрывы | Кризисный режим |
-| L4 | Safe mode (0 LLM) | Нет | Безопасное хранение |
-
-## 7. Сравнение с TUI
-
-| Параметр | TUI | WATERS |
-|----------|-----|--------|
-| Размер | ~30MB | 11MB |
-| Зависимости | Rust/npm | Только Redis |
-| UI | ratatui | Веб + голос + Telegram |
-| LLM | DeepSeek | 6 любых |
-| Агенты | 7 (код) | 25+ (профессии) |
-| Сеть | localhost | P2P |
-| Голос | ❌ | ✅ |
-| Медиа | ❌ | NDI/OBS/HDMI |
-| Импорт | ❌ | TUI/Claude/Cursor |
+*Обновлено для v1.0.0. Три языка: RU, EN, ZH.*

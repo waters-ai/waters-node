@@ -1,76 +1,43 @@
-# Команды WATERS Node
+# Команды WATERS Node v1.0.0
 
 ## Управление агентами
+`/agent create <skill> [bg]` | `/agent list` | `/assign <id> <task>` | `/send <id> <message>`
+`/screen <name>` | `/merge <n1> <n2>` | `/rating <name>` | `/rate <name> <score>` | `/top`
 
-| Команда | Описание |
-|---------|----------|
-| `/agent create <skill> [bg]` | Создать агента (bg = фоновый) |
-| `/agent list` | Список активных агентов |
-| `/assign <id> <task>` | Назначить задачу агенту |
-| `/send <id> <message>` | Отправить сообщение агенту |
-| `/screen <name>` | Досмотр безопасности (YASA) |
-| `/merge <name1> <name2>` | Слить двух агентов |
-| `/rating <name>` | Рейтинг агента |
-| `/rate <name> <score> [text]` | Оценить агента |
-| `/top` | Топ агентов по рейтингу |
+## LLM (новое в v1.0.0)
+`/llm` — список провайдеров | `/llm set <name>` — переключить
+`/llm mode auto|local|remote` — режим hybrid_llm
+`/llm edge status` — статус бортовой GGUF
 
-## Чат и общение
-
-| Команда | Описание |
-|---------|----------|
-| `/say [group] <text>` | Написать в чат группы |
-| `/chat [group] <text>` | Чат + показать последние |
-| `/opinions [group] [task]` | Мнения агентов / чат группы |
-
-## Импорт/экспорт
-
-| Команда | Описание |
-|---------|----------|
-| `/import <file>` | Импорт агента из файла |
-| `/import-dir <dir>` | Массовый импорт из папки |
-| `/export <name> <format> [dir]` | Экспорт (tui/claude/cursor/waters) |
+## Чат
+`/say [group] <text>` | `/chat [group] <text>` | `/opinions [group] [task]`
 
 ## Сеть
-
-| Команда | Описание |
-|---------|----------|
-| `/connect <ip>:<port>` | Подключиться к ноде |
-| `status` | Статус ноды (peers, bridges) |
-| `/find` | Поиск нод (mDNS) |
-
-## LLM
-
-| Команда | Описание |
-|---------|----------|
-| `/llm` | Список LLM провайдеров |
-| `/llm set <name>` | Переключить LLM |
-| `/lang` | Текущий язык |
-| `/lang set ru\|en\|zh` | Сменить язык |
+`/connect <ip>:<port>` | `status` | `/find`
 
 ## Задачи
-
-| Команда | Описание |
-|---------|----------|
-| `/task create <title> <desc>` | Создать задачу |
-| `/task assign <id> <agent>` | Назначить агента |
-| `/task list [group]` | Список задач |
-| `/task done <id>` | Завершить задачу |
+`/task create <title> <desc>` | `/task assign <id> <agent>` | `/task list` | `/task done <id>`
 
 ## Группы
+`/group create <name>` | `/group list` | `/group invite <name> <node>` | `/group mode <name> <mode>`
 
-| Команда | Описание |
-|---------|----------|
-| `/group create <name>` | Создать группу |
-| `/group list` | Список групп |
-| `/group invite <name> <node>` | Пригласить ноду |
-| `/group mode <name> <mode>` | Режим группы |
+## MCP
+`/mcp list` | `/mcp search <query>` | `/mcp install <name>` | `/mcp uninstall <name>`
+`/mcp tap add <url>` | `/mcp tap remove <url>`
+
+## Self-improve (новое в v1.0.0)
+`/self improve` — полный цикл с ревью | `/self status` — текущая фаза
+`/self review <pr_id>` — ручной запуск ревью
+
+## Безопасность
+`/yasa screen <agent>` | `/yasa rules` | `/secure on|off`
+`/privacy show` | `/privacy share <type> <name>`
+
+## Голос
+`/toggle voice` | `/voice profile <n>` | `/voice test`
+
+## Медиа
+`/camera` | `/camera ptz left`
 
 ## Разное
-
-| Команда | Описание |
-|---------|----------|
-| `/skills` | Список доступных агентов/skills |
-| `/bridges` | Статус бриджей |
-| `/tui-agents` | Встроенные TUI агенты |
-| `/help` | Справка |
-| `/exit` | Выход |
+`/skills` | `/bridges` | `/diagnose` | `/help` | `/exit` | `/lang set ru|en|zh`

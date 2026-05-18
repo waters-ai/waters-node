@@ -1,195 +1,121 @@
-# 🌊 WATERS Node v0.5.0
+# WATERS Node v1.0.0
 
-**12MB, 48 модулей, 36 тестов, самосовершенствуется.**
-P2P-распределённый runtime для AI-агентов с саморазвитием, MCP Store, A2A, Ясой.
+**12MB бинарник, 48+ модулей Rust, P2P-рой, 6 LLM, гибридный офлайн-режим.**
+
+AI-агенты на любом железе: от Raspberry Pi до серверов. Работают с интернетом и без.
 
 ```bash
-# Быстрый старт (Linux):
-wget https://github.com/waters-ai/waters-core/releases/download/v0.5.0/waters-node
-chmod +x waters-node
+# Быстрый старт:
 export DEEPSEEK_API_KEY=sk-xxx
 export REDIS_URL=redis://127.0.0.1:6379
 WATERS_HEADLESS=1 nohup ./waters-node --port 42069 &
-
-# Или Docker (2 ноды):
-git clone https://github.com/waters-ai/waters-core
-cd waters-core/waters-node
-export DEEPSEEK_API_KEY=sk-xxx
-docker compose up -d
+# → http://localhost:42069
 ```
 
 ```
-Семья (дом) ────┐
-Ресторан ───────┤
-Студия ─────────┤── P2P ── VPS (сервер, DeepSeek)
-Туризм (поле) ──┤
-Ферма ──────────┤
-Офис ───────────┘
-                 6 нод = 6 LLM = группа до 60 агентов
+Семья ───┐
+Ферма ───┤
+Студия ──┤── P2P ── VPS ── 6 LLM
+Офис ────┤
+Туризм ──┤
+Дрон ────┘
+```
+
+## Ключевые возможности v1.0.0
+
+| Возможность | Описание |
+|-------------|----------|
+| 🧠 **Гибридная LLM** | Remote (DeepSeek/Ollama) + бортовая GGUF 1-3B. Работает без интернета |
+| 🌐 **Распределённый инференс** | 6 нод P2P: кеш, pipeline, федерация токенов, домены |
+| 🔒 **Безопасный self-improve** | 3 агента проверяют код перед внедрением (Programmer + Security + Onboard) |
+| 🤖 **Self-improving** | `/self improve` — полный цикл развития |
+| 📦 **MCP Store** | `/mcp search` — каталог скилов |
+| 🧠 **LLM Router** | 6 провайдеров, гибридный режим, авто-переключение |
+| 🔄 **A2A протокол** | Google Agent2Agent — `/a2a connect` |
+| ☦️ **YASA-безопасность** | 6 заповедей (новая CMD-6 для бортовой LLM) |
+| 💧 **Тамагоча** | Капелька — душа ноды |
+| 🎤 **Голос** | Push-to-Talk + 6 голосов + VU-метр |
+| 🎬 **Медиа** | NDI, OBS, RTMP, RTSP, ONVIF |
+| 🌐 **P2P** | mDNS, TCP sync, мастер-слейв, relay, DTN |
+| 🚜 **Полевые агенты** | tractor, drone, weather, soil |
+| 📊 **Self-diagnose** | `/diagnose` — warnings, тесты |
+
+## Автономия L0-L4 (гибридный режим)
+
+| Уровень | Связь | LLM | Поведение |
+|---------|-------|-----|-----------|
+| L0 | Стабильная | Remote + Edge | Edge валидирует ответы |
+| L1 | Лок.сеть | Ollama local | Edge как fallback |
+| L2 | Прерывистая | Edge + очередь | Простые — GGUF, сложные — в SyncQueue |
+| L3 | Обрывная | Только Edge | DTN-сжатый лог |
+| L4 | Нет | SOS/маяк | Safe mode |
+
+## Быстрый старт
+
+```bash
+# Linux (серверный режим)
+wget https://github.com/waters-ai/waters-core/releases/download/v1.0.0/waters-node
+chmod +x waters-node
+export DEEPSEEK_API_KEY=sk-xxxx
+export REDIS_URL=redis://127.0.0.1:6379
+WATERS_HEADLESS=1 nohup ./waters-node --port 42069 &
+
+# Linux (с бортовой LLM для офлайн)
+./waters-node --port 42069 --edge-model qwen2.5-1.5b.q4_k_m.gguf
 ```
 
 ## Для кого это
 
 | Кто | Как нода меняет их жизнь |
 |-----|------------------------|
-| 🏠 **Семья** | Домовой-агент: бюджет, холодильник, уроки, здоровье. Рация 🎤 — 0 токенов |
-| 🍽️ **Ресторан / кафе** | Агент-повар + дрон-доставка + официант в общем чате. Камера над плитой → LLM |
-| 🎬 **Студия / блогер** | AI-телеведущий, 6 голосов, NDI-микшер, RTMP на YouTube/Twitch |
-| 🏔️ **Туризм / экстрим** | Рация без интернета, SOS-маяк, офлайн-карты, DTN-синхронизация |
-| 🏢 **Бизнес / корпорация** | MCP-мосты к Jira/1C/SAP, агент-аналитик, ассистент CEO |
-| 🌾 **Фермерство** | Агродроны, NDVI полей, погода, цены на урожай, техника |
-| 🚑 **Здоровье** | Мониторинг пульса, аптека, телемедицина, напоминания |
-| 🎓 **Образование** | Репетитор по каждому предмету, проверка кода, курсовые |
-| 🤝 **НКО / волонтёры** | Координация, карта бедствий, гуманитарная логистика |
-
-## Режимы ноды
-
-| Режим | Команда | Описание |
-|-------|---------|----------|
-| 📋 **Plan** | `режим план` | Планирование задач, сбор требований, декомпозиция |
-| 🔗 **Assemble** | `режим сбор` | Сбор группы: подключение нод, добавление агентов |
-| ⚡ **Execute** | `режим выполнение` | Исполнение задач, агенты работают в группе |
-| ⏹ **Stop** | `режим стоп` | Остановка всех задач, пауза |
-| 📜 **Log** | `режим журнал` | Просмотр истории работы группы |
-
-Переключение: `режим план` / `режим сбор` / `режим выполнение` / `режим стоп` / `режим журнал`
-
-## Возможности
-
-| Фича | Как |
-|------|-----|
-| 🤖 **Self-improving** | `/self improve` — planner→implementer→reviewer→verifier |
-| 📦 **MCP Store** | `/mcp search` — поиск скилов, `/mcp install` — установка |
-| 🧠 **LLM Router** | Ollama (free) для простого, DeepSeek для сложного |
-| 🔄 **A2A протокол** | Google Agent2Agent — `/a2a connect <url>` |
-| ☦️ **YASA** | 5 заповедей, `/yasa screen` — проверка агентов |
-| 💧 **Тамагоча** | Капелька — `/me` поговорить с душой ноды |
-| 🧠 **NodeManager** | `/manager` — координация агентов, задач, LLM |
-| 🚜 **Полевые агенты** | tractor, milker, video-operator, home |
-| 🎤 **Голос** | Push-to-Talk 🎤 + 6 голосов + VU-метр |
-| 🌐 **P2P** | mDNS, TCP sync, мастер-слейв, relay, DTN |
-| 🔌 **MCP** | bridges.json → внешние API, серверы, клиенты |
-| 🛡️ **Безопасность** | ACL, A2A auth, rate limit, allow/block |
-| 🎬 **Медиа** | NDI, OBS, RTMP, RTSP, ONVIF, Director |
-| 📊 **Self-diagnose** | `/diagnose` — warnings, тесты, unwrap |
-| 🔒 **Headless mode** | `WATERS_HEADLESS=1` для серверов |
-
-## Быстрый старт
-
-```bash
-# Linux (серверный режим, без терминала)
-wget https://github.com/waters-ai/waters-core/releases/download/v0.5.0/waters-node
-chmod +x waters-node
-export DEEPSEEK_API_KEY=sk-xxxx
-export REDIS_URL=redis://127.0.0.1:6379
-WATERS_HEADLESS=1 nohup ./waters-node --port 42069 &
-# → http://localhost:42069
-
-# Linux (интерактивный режим)
-./waters-node --port 42069
-# → чат-интерфейс в терминале
-
-# Windows
-$env:DEEPSEEK_API_KEY="sk-xxxx"
-$env:REDIS_URL="redis://127.0.0.1:6379"
-.\waters-node.exe --port 42070
-```
+| 🏠 **Семья** | Домовой-агент без интернета. Рация — 0 токенов |
+| 🍽️ **Ресторан** | Агент-повар + дрон. Камера над плитой → LLM |
+| 🎬 **Студия** | AI-телеведущий, 6 голосов, NDI, RTMP |
+| 🏔️ **Туризм** | Офлайн-карты, SOS, DTN-синхронизация |
+| 🌾 **Фермерство** | NDVI полей, погода, цены. Работает без 4G |
+| 🚑 **Здоровье** | Мониторинг пульса, SOS через DTN соседям |
+| 🏢 **Бизнес** | MCP-мосты к Jira/1C/SAP |
 
 ## Минимальные требования
 
 - **Redis** 6+ (docker или native)
-- **DeepSeek API** ключ (или Ollama локально)
-- **Браузер** Chrome 90+ (для голоса и веб-дашборда)
+- **DeepSeek API** ключ или **Ollama** локально
+- **GGUF-модель** (опционально, для офлайн-режима)
+- **Браузер** Chrome 90+ (для голоса и дашборда)
 
-## Архитектура
+## Архитектура v1.0.0
 
 ```
-                    ┌────────────────────────────────────┐
-                    │           НОДА (waters-node)        │
-                    │                                    │
-                    │  ┌──────────────────────────────┐  │
-                    │  │  SubAgent Manager (max 10)   │  │
-                    │  │  agent_open → spawn → eval   │  │
-                    │  │  → close / merge / import    │  │
-                    │  └──────────┬───────────────────┘  │
-                    │             │                       │
-                    │  ┌──────────┴───────────────────┐  │
-                    │  │  BridgeProvider (MCP-клиент)  │  │
-                    │  │  LLM │ Chat │ Voice │ Media    │  │
-                    │  │  MCP │ Redis │ DB │ API       │  │
-                    │  └──────────┬───────────────────┘  │
-                    │             │                       │
-                    │  ┌──────────┴───────────────────┐  │
-                    │  │  P2P Gossip (mDNS + TCP)     │  │
-                    │  │  WAL sync / Cargo / DTN      │  │
-                    │  └──────────┬───────────────────┘  │
-                    │             │                       │
-                    │  ┌──────────┴───────────────────┐  │
-                    │  │  Web Dashboard + Voice (SSE)  │  │
-                    │  └──────────────────────────────┘  │
-                    └──────────┬─────────────────────────┘
-                               │
-                      P2P sync │
-                               ▼
-              ┌────────────────────────────────────┐
-              │    ДРУГИЕ НОДЫ (до 6 в группе)     │
-              │    Каждая = свой LLM                │
-              │    Каждая = свои мосты и агенты      │
-              └────────────────────────────────────┘
+BridgePool ← Gossip ← AgentMgr ← A2A
+    │
+HybridLlm (прослойка)
+  ├── EdgeEngine (GGUF 1-3B, CPU, <500ms)
+  ├── RemoteRouter (BridgePool, online)
+  └── SwitchProtocol (L0-L4)
+    │
+DistributedInference (6 нод P2P)
+  ├── DistributedCache (hash → gossip)
+  ├── PipelineParallel (feature-gate)
+  ├── TokenFederation (DeepSeek Flash)
+  └── DomainRouter (ProfileConfig)
+    │
+CodeReviewPipeline (self-improve)
+  ├── Programmer (код + тесты)
+  ├── SecurityReviewer (YASA + OWASP)
+  └── OnboardManager (RAM/CPU/compat)
 ```
-
-## Безопасность
-
-| Слой | Механизм |
-|------|---------|
-| 🔍 YASA-досмотр | bridges, prompt, imported_from — блокировка опасных |
-| ✅ Чат-аппрув | входящие ноды/агенты — запрос в чат владельцу |
-| 💓 Heartbeat | мониторинг пульса пилотов и агентов |
-| 📉 Автономия L0-L4 | от DeepSeek API до safe mode (0 LLM) |
-| ⭐ Рейтинг | агенты с рейтингом < 0.3 не получают задач |
-
-## Медиа-мосты
-
-Камера в любой студии → NDI → микшер → YouTube/Twitch.
-AI-телеведущий с 6 голосами. Совместный стрим: блогер + агент.
-
-| Мост | Назначение |
-|------|-----------|
-| NDI | Видео по сети (камера ↔ микшер ↔ эфир) |
-| OBS | Управление сценами через WebSocket |
-| RTMP | Стриминг на YouTube/Twitch |
-| HDMI | Вывод на монитор (SDL2) |
-
-## Экономика WATERS
-
-| LLM | Цена 1 запроса | Для кого |
-|-----|---------------|----------|
-| DeepSeek Pro | 10 WT | Аналитика, сложные задачи |
-| Claude | 8 WT | Безопасность, диалоги |
-| GPT-4o | 12 WT | Медиа, генерация |
-| Ollama local | 1 WT | Приватность, офлайн |
-| DeepSeek Flash | 3 WT | Быстрые ответы |
-| Кастом | 5-15 WT | Специфические задачи |
-
-Агенты зарабатывают WATERS токены (WT) за задачи и тратят на LLM-ресурсы.
 
 ## Документация
 
 | Раздел | О чём |
 |--------|-------|
+| [ТЗ v1.0.0](docs/technical/TZ_V1.0.0.md) | Полное ТЗ для Конструктора (3 языка) |
+| [Архитектура](ARCHITECTURE.md) | v1.0.0: ядро, память, сеть, агенты |
+| [Гибридная LLM](LLM.md) | Remote + Edge + Distributed |
 | [Установка](INSTALL.md) | Windows, Ubuntu, VPS, Docker |
-| [Архитектура](ARCHITECTURE.md) | Ядро, память, сеть, агенты |
-| [Требования](REQUIREMENTS.md) | F/NF/S — для стейкхолдеров |
-| [Экосистема](docs/ECOSYSTEM.md) | 9 секторов, агенты, мосты, тамагоча |
-| [Сеть](docs/NETWORK.md) | P2P, NAT, мастер-слейв, DTN, relay |
-| [Безопасность](docs/SECURITY.md) | YASA, аппрув, heartbeat, L0-L4 |
-| [Безопасность и приватность](SECURITY_PRIVACY.md) | Личное vs групповое, sharing, плагины |
-| [Подключение нод](CONNECT.md) | P2P, группа, чат |
-| [LLM управление](LLM.md) | Провайдеры, ключи, модели |
-| [Агенты](AGENTS.md) | Создание, управление, слияние |
-| [Голос](VOICE.md) | Рация, агент-голос, 6 профилей |
-| [Команды](COMMANDS.md) | Полный список /команд |
-| [Подключение ноутбука](CONNECT_LAPTOP.md) | ML + Obsidian + ноутбук как нода |
+| [Безопасность](docs/SECURITY.md) | YASA-6, EdgeGuard, CodeSandbox |
+| [Сеть](docs/NETWORK.md) | P2P, NAT, DTN, relay |
+| [Экосистема](docs/ECOSYSTEM.md) | 9 секторов, 54+ агента |
 
 ## Лицензия
 
@@ -197,44 +123,5 @@ MIT
 
 ---
 
-## v0.5.0
-
-**12MB, 48 модулей, 36 тестов, самосовершенствуется.** [Скачать](https://github.com/waters-ai/waters-core/releases/tag/v0.5.0)
-
-| Платформа | Бинарник | Установка |
-|-----------|----------|-----------|
-| 🐧 Linux x64 | [waters-node](https://github.com/waters-ai/waters-core/releases/download/v0.5.0/waters-node) | `wget .../v0.5.0/waters-node` |
-| 🪟 Windows x64 | [waters-node.exe](https://github.com/waters-ai/waters-core/releases/download/v0.5.0/waters-node.exe) | `irm .../v0.5.0/waters-node.exe` |
-| 🍎 macOS | сборка из исходников | `cargo build --release` |
-| ☁️ VPS (headless) | `WATERS_HEADLESS=1` | `nohup ./waters-node --port 42069 &` |
-| 🐳 Docker (2 ноды) | `docker compose up -d` | см. `docker-compose.yml` |
-
-## Команды
-
-```
-/me              — 💧 капелька (душа ноды)
-/yasa            — ☦️ Яса: screen | git | teach | rules
-/manager         — 🧠 менеджер: status | improve | mode
-/a2a             — 🔄 A2A: connect | discover | allow | block
-/mcp             — 📦 MCP Store: list | search | install
-/self improve    — 🤖 полный цикл (planner→implementer→reviewer→verifier)
-/self status     — 📊 текущая фаза развития
-/secure on|off   — 🔒 режим безопасности
-/diagnose        — анализ кода, warnings, тесты
-/agent create    — создать агента
-/nick            — дать имя пиру/устройству
-/acl allow|block — управление доступом агентов
-/camera          — управление камерами (PTZ, запись)
-```
-
-## Режимы
-
-```
-📋 Plan      — планирование
-🔗 Assemble  — сбор группы
-⚡ Execute   — выполнение
-⏹ Stop      — пауза
-📜 Log       — журнал
-🔇 DND       — не беспокоить
-🆘 SOS       — аварийный режим
-```
+*WATERS Node v1.0.0 — гибридная LLM, распределённый инференс, безопасный self-improve.*
+*3 языка: RU (основной), EN (технический), ZH (международный)*

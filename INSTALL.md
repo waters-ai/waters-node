@@ -1,4 +1,4 @@
-# Установка WATERS Node v0.4
+# Установка WATERS Node v1.0.0
 
 ## 🐧 Ubuntu / Linux
 
@@ -8,56 +8,45 @@ sudo apt update && sudo apt install -y redis-server
 sudo systemctl start redis
 
 # 2. Скачать бинарник
-wget https://github.com/waters-ai/waters-node/releases/download/v0.4/waters-node
+wget https://github.com/waters-ai/waters-core/releases/download/v1.0.0/waters-node
 chmod +x waters-node
 
-# 3. Скачать конфиги и агентов (опционально)
-wget https://github.com/waters-ai/waters-node/releases/download/v0.4/agents.tar.gz
-tar xzf agents.tar.gz
+# 3. (Опционально) Скачать GGUF-модель для офлайн-режима
+wget https://huggingface.co/Qwen/Qwen2.5-1.5B-GGUF/resolve/main/qwen2.5-1.5b-q4_k_m.gguf
 
 # 4. Запуск
 export DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx
 export REDIS_URL=redis://127.0.0.1:6379
-./waters-node --port 42069
+./waters-node --port 42069 --edge-model qwen2.5-1.5b-q4_k_m.gguf
 ```
 
 ## 🪟 Windows
 
 ```powershell
-# 1. Redis (один из вариантов)
-# Вариант A: WSL
-wsl --install -d Ubuntu
-wsl sudo apt update && sudo apt install -y redis-server
-wsl sudo redis-server --daemonize yes
-
-# Вариант B: Memurai (рекомендуется)
-# https://www.memurai.com/ — скачать и установить
+# 1. Memurai (Windows-native Redis): https://www.memurai.com/
 
 # 2. Скачать бинарник
-# https://github.com/waters-ai/waters-node/releases/download/v0.4/waters-node.exe
+# https://github.com/waters-ai/waters-core/releases/download/v1.0.0/waters-node.exe
 
-# 3. Запуск в PowerShell
+# 3. Запуск
 $env:DEEPSEEK_API_KEY = "sk-xxxxxxxxxxxxxxxx"
 $env:REDIS_URL = "redis://127.0.0.1:6379"
-.\waters-node.exe --port 42070
+.\waters-node.exe --port 42070 --edge-model qwen2.5-1.5b-q4_k_m.gguf
 ```
 
-## ☁️ VPS (Ubuntu)
+## ☁️ VPS (Headless)
 
 ```bash
 ssh user@your-vps-ip
-cd ~/waters-node
-export DEEPSEEK_API_KEY=sk-xxxxxxxxxxxx
-./waters-node --port 42069
+export DEEPSEEK_API_KEY=sk-xxxx
+export REDIS_URL=redis://127.0.0.1:6379
+WATERS_HEADLESS=1 nohup ./waters-node --port 42069 --edge-model ./model.gguf &
 ```
 
-## 🐳 Docker (альтернатива)
+## 🐳 Docker
 
 ```bash
-# Redis в Docker
 docker run -d --name waters-redis -p 6379:6379 redis:7-alpine
-
-# Нода
 docker run -d --name waters-node \
   -e DEEPSEEK_API_KEY=sk-xxxx \
   -e REDIS_URL=redis://host.docker.internal:6379 \
@@ -65,21 +54,13 @@ docker run -d --name waters-node \
   waters-node:latest
 ```
 
-## 🔄 Обновление
-
-```bash
-# Просто заменить бинарник и перезапустить
-./waters-node --port 42069
-# Все данные в Redis сохраняются
-```
-
 ## 📋 Проверка установки
 
 ```bash
-# После запуска открыть в браузере:
 http://localhost:42069
-
-# В консоли ноды проверить:
-status
-# Должно быть: Redis ✅, Skills 25+
+# → статус ноды, LLM, пиры
 ```
+
+---
+
+*Обновлено для v1.0.0. Бортовая модель — опционально.*
