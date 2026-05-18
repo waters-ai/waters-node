@@ -1,107 +1,128 @@
-# WATERS Node v0.4 — Technical Specification
+# WATERS Node v1.0.0 — Technical Specification
 
-**Версия:** 0.4 | **Дата:** 2026-05-17 | **Автор:** agent.constructor.v1
-
----
-
-## WATNODE-ARCH: Node Architecture
-
-### WATNODE-ARCH-1: Node Core
-
-Single 11MB binary, 36 .rs files, ~9500 lines of Rust code. Node includes SubAgent Manager (max 10 concurrent), BridgeProvider (LLM, MCP, media, voice, chat), P2P Gossip (mDNS + TCP), web dashboard (SSE).
-
-> **Следствие:** Node runs without external dependencies except Redis
-
-### WATNODE-ARCH-2: Node Layers
-
-UX layer: chat + voice. Core layer: Engine with command routing. Resource layer: Bridge Registry, MCP Client Pool, Skill Registry. Network layer: P2P + Gossip + WAL. Autonomy layer: L0-L4 + DTN.
-
-> **Следствие:** Each layer is isolated and can be replaced independently
-
-### WATNODE-ARCH-3: Comparison with Hermes Agent
-
-Hermes Agent (153K ★) is a mature platform with self-improving skills, 22 messaging platforms, cron scheduler, lazy dependency loading, and plugins. waters-node is more compact (11MB vs ~200MB), faster (Rust vs Python), but lags in skill ecosystem and multi-platform support.
-
-> **Следствие:** v0.5 should add skill self-improvement, cron, and more platforms
+**Version:** 1.0.0 | **Date:** 2026-05-18 | **Author:** agent.architect.v1
+**Format:** YASA Technical v2 | **Language:** English
 
 ---
 
-## WATNODE-MODE: Node Modes
+## WATNODE-HYBRID: Hybrid LLM (hybrid_llm)
 
-### WATNODE-MODE-1: Five Operating Modes
+### WATNODE-HYBRID-1: Purpose
+Transparent layer between LLM Router (BridgePool) and agents. Automatically switches LLM response source: remote LLM (DeepSeek/Claude/GPT-4o/Ollama) or onboard GGUF 1-3B model.
 
-Plan — task planning and goal setting. Assemble — group assembly (nodes + agents). Execute — task execution, agents working. Stop — pause all tasks. Log — group work log. Switch: режим план/сбор/выполнение/стоп/журнал.
+> **Consequence:** Agents continue working during connectivity loss. Node does not drop to L4 safe mode on internet outage.
 
-> **Следствие:** Modes determine available commands and agent behavior
+### WATNODE-HYBRID-2: EdgeEngine
+GGUF model loading via `llama-cpp-rs` or `candle`. CPU inference, <500ms on RPi4. Config: `[edge] model, cache_ttl, max_tokens`.
 
----
+> **Consequence:** Raspberry Pi 4 gets a fully functional LLM agent without internet.
 
-## WATNODE-MEM: Memory System (Redis)
+### WATNODE-HYBRID-3: SwitchProtocol
+Integration with AutonomyEngine (L0-L4): L0=Remote+validate, L1=Remote+fallback, L2=Edge(simple)/Queue(complex), L3=Edge+DTN, L4=SOS.
 
-### WATNODE-MEM-1: Multi-DB Architecture
+> **Consequence:** Graceful degradation rather than binary "works/doesn't work".
 
-DB 0 — system (node:state, rating, security). DB 1-6 — groups (chat, findings, journal, opinions). DB 15 — LLM cache. Keys: agent:{id}:state (Hash), agent:{id}:findings (Stream), group:{id}:chat (Stream).
+### WATNODE-HYBRID-4: PrefetchCache
+Prefetch responses based on active tasks. Stored in Redis DB 14-15.
 
-> **Следствие:** Data survives restarts, Redis is the only mandatory dependency
-
----
-
-## WATNODE-P2P: Network (P2P)
-
-### WATNODE-P2P-1: Connection Topology
-
-Up to 6 peers (MAX_PEERS=6). Master-slave (one behind NAT), Hub-and-Spoke (all through VPS), full mesh (6 nodes). mDNS for local discovery, TCP sync for WAL. DTN for intermittent connectivity.
-
-> **Следствие:** Each node has HTTP API (port N), MCP server (N+100), TCP sync (N+3), mDNS (N+1)
+> **Consequence:** Typical requests served instantly, no LLM wait time.
 
 ---
 
-## WATNODE-AGENT: Agent System
+## WATNODE-DISTR: Distributed Inference (distributed_inference)
 
-### WATNODE-AGENT-1: SubAgent Lifecycle
+### WATNODE-DISTR-1: DistributedCache
+hash(prompt) → gossip request to 6 nodes. Lookup <200ms. Up to 80% repeat queries without inference.
 
-agent_open(role, skill, llm) → spawn tokio task. agent_send_input(message, interrupt) → send message. agent_assign(new_objective) → change task. agent_eval → read results. agent_close → cancellation cascade + journal. Concurrency cap: max 10.
+> **Consequence:** 6 weak nodes act as one with a large LLM cache.
 
-> **Следствие:** Agents can work in parallel, be imported from TUI/Claude/Cursor, and be merged
+### WATNODE-DISTR-2: Pipeline Parallelism (feature-gate)
+Model split by layers across 6 nodes, tensors via CargoEngine. Off by default.
 
-### WATNODE-AGENT-2: 54+ Professions
+> **Consequence:** 6×4GB RAM = run 7B model on weak devices.
 
-TUI-code agents (general, explorer, planner, reviewer, implementer, verifier, custom). WATERS professions: collector, scout, analyst, synthesizer, coordinator, archivist, specialist. Media: camera-operator, video-editor, lab-operator.
+### WATNODE-DISTR-3: Token Federation
+Shared DeepSeek Flash API pool. Distributed across nodes, then fully autonomous.
 
-> **Следствие:** Agents can be created, imported, and merged at runtime
+> **Consequence:** One API account for the entire group, cost savings.
 
----
+### WATNODE-DISTR-4: DomainRouter
+Request routing by domain (agriculture→node3, navigation→node5). Read from ProfileConfig.
 
-## WATNODE-SEC: Security
-
-### WATNODE-SEC-1: YASA Screening
-
-Every agent is screened: bridges (only allowed), prompt (rm -rf, sudo, curl|bash), imported_from (only trusted). Chat-approve connections. Heartbeat monitoring. Rating < 0.3 gets no tasks. Autonomy L0-L4.
-
-> **Следствие:** Security at agent launch level, not network level
+> **Consequence:** Each node runs its own specialized GGUF model.
 
 ---
 
-## WATNODE-API: API and Commands
+## WATNODE-REVIEW: Code Review Pipeline (code_review_pipeline)
 
-### WATNODE-API-1: HTTP API
+### WATNODE-REVIEW-1: Three Agents
+Programmer (writes code+tests), SecurityReviewer (YASA+OWASP), OnboardManager (RAM/CPU/compat).
 
-GET /status — node state. GET /peers — peer list. POST /chat — send message. GET /store/:key — Redis read. SSE /api/v1/stream/{session} — streaming. MCP server on port N+100.
+> **Consequence:** No dangerous or inefficient code enters the node without review.
 
-> **Следствие:** Full node functionality access via HTTP
+### WATNODE-REVIEW-2: Voting
+Both APPROVE → AutoDeploy. One REJECT → escalate to owner. Both REJECT → blocked.
 
-### WATNODE-API-2: Chat Commands
+> **Consequence:** Human involvement only in disputed cases.
 
-/help — help. /skills — skill list. /agents — agent list. /bridges — bridge list. /status — state. /mode — switch mode. /connect <ip> — connect peer. /chat <text> — LLM. /say <id> <text> — group message. /merge — merge agents. /import — import agent.
+### WATNODE-REVIEW-3: CodeSandbox
+Isolated execution in tempfile + unshare/docker. 30s timeout, 256MB memory.
 
-> **Следствие:** All commands available in Russian and via web dashboard
+> **Consequence:** Tests cannot damage the host system.
 
 ---
 
-## WATNODE-INSTALL: Installation and Launch
+## WATNODE-MEMORY: Memory (additions)
 
-### WATNODE-INSTALL-1: Quick Start
+### WATNODE-MEMORY-2: New Redis DBs
+DB 14 — edge LLM cache (EdgeCache). DB 15 — distributed LLM cache (DistributedCache). DB 1-6 — groups unchanged.
 
-Linux: download binary + Redis + DeepSeek API key. Windows: powershell + Memurai. Docker: redis + waters-node containers. VPS: ssh + binary. Minimum requirements: Redis 6+, DeepSeek API/Ollama, Chrome 90+ browser.
+> **Consequence:** Cache does not overlap with system data.
 
-> **Следствие:** From 5 minutes to first node launch
+---
+
+## WATNODE-CONFIG: Configuration (new fields)
+
+### WATNODE-CONFIG-1: config.toml
+```toml
+[edge]
+model = "qwen2.5-1.5b.q4_k_m.gguf"
+cache_ttl = 300
+max_tokens = 512
+
+[distributed]
+cache_enabled = true
+pipeline_enabled = false
+token_pool_size = 1000000
+```
+
+### WATNODE-CONFIG-2: Cargo.toml features
+```toml
+[features]
+default = []
+pipeline-parallel = []
+```
+
+---
+
+## WATNODE-SECURITY: Security (additions)
+
+### WATNODE-SECURITY-2: YASA-CMD-6
+New commandment: "Check the onboard LLM — its response may be inaccurate without connectivity."
+
+### WATNODE-SECURITY-3: EdgeGuard
+GGUF response validation: no dangerous commands, no key leaks. Prompt injection → blocked.
+
+---
+
+## WATNODE-INTEGRATION: Integration with Existing Code
+
+### WATNODE-INTEGRATION-1: Unchanged Modules
+a2a.rs, mcp_store.rs, media_bridge.rs, voice, tamagotchi.rs — no changes.
+
+### WATNODE-INTEGRATION-2: v0.3 Archive
+All `docs/waters-node/MASTER_SPEC_V3.md*` documents moved to `docs/waters-node/archive/`.
+
+---
+
+*Document created by: agent.architect.v1 | Approved: 2026-05-18*
